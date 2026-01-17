@@ -39,26 +39,26 @@
 
       // 1. Success Handler: Build URL and attempt Jump
       function handleSuccess(response) {
-          document.getElementById('loader').style.display = "none";
-          document.getElementById('status').innerText = "Payment Verified!";
-          document.getElementById('hint').innerText = "Redirecting you back to your parking pass...";
+    document.getElementById('loader').style.display = "none";
+    document.getElementById('status').innerText = "Payment Verified!";
+    
+    // 1. Get the base scheme (e.g., "parkngo://")
+    const baseScheme = params.get("appScheme") || "parkngo://";
+    
+    // 2. Point to the root "/" to avoid "Unmatched Route"
+    // We add a '?' so the params are parsed correctly by Linking.parse
+    const successUrl = `${baseScheme}?` + 
+                       `razorpay_payment_id=${response.razorpay_payment_id}` + 
+                       `&razorpay_order_id=${response.razorpay_order_id}` + 
+                       `&razorpay_signature=${response.razorpay_signature}`;
 
-          const successUrl = `${appScheme}discover?` + 
-                             `razorpay_payment_id=${response.razorpay_payment_id}` + 
-                             `&razorpay_order_id=${response.razorpay_order_id}` + 
-                             `&razorpay_signature=${response.razorpay_signature}`;
+    const btn = document.getElementById('fallback-btn');
+    btn.href = successUrl;
+    btn.style.display = "block";
 
-          // Show manual button immediately as a fallback
-          const btn = document.getElementById('fallback-btn');
-          btn.href = successUrl;
-          btn.style.display = "block";
-
-          // Try automatic redirect
-          window.location.replace(successUrl);
-          
-          // Secondary fallback for Android Chrome
-          setTimeout(() => { window.location.href = successUrl; }, 800);
-      }
+    window.location.replace(successUrl);
+    setTimeout(() => { window.location.href = successUrl; }, 800);
+}
 
       window.onload = function() {
         // 2. LOOP PROTECTION: If the URL already contains success data, stop here.
