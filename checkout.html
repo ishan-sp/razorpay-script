@@ -25,20 +25,22 @@
         "description": "Parking Reservation",
         "order_id": params.get("orderId"),
         "handler": function (response) {
-    // 1. Get the scheme and ensure it's not null
-    let scheme = params.get("appScheme") || "parkngo://";
+    // 1. Update UI
+    document.getElementById('status').innerText = "Payment Verified! Returning to App...";
     
-    // 2. Build the exact success URL
-    const successUrl = `${scheme}payment-callback?` + 
-                       `razorpay_payment_id=${response.razorpay_payment_id}` + 
-                       `&razorpay_order_id=${response.razorpay_order_id}` + 
-                       `&razorpay_signature=${response.razorpay_signature}`;
+    // 2. Build the URL
+    const scheme = params.get("appScheme") || "parkngo://";
+    const successUrl = `${scheme}payment-callback?razorpay_payment_id=${response.razorpay_payment_id}&razorpay_order_id=${response.razorpay_order_id}&razorpay_signature=${response.razorpay_signature}`;
 
-    // 3. Force the redirect
-    window.location.href = successUrl;
-    
-    // 4. Fallback for Android Chrome
-    setTimeout(() => { window.location.replace(successUrl); }, 500);
+    // 3. The "Double-Tap" Redirect
+    // window.location.replace is better than .href as it doesn't save the "Initiating" page in history
+    window.location.replace(successUrl);
+
+    // 4. Critical: Show a manual button if the auto-redirect is blocked
+    const fallbackBtn = document.getElementById('fallback-btn');
+    fallbackBtn.href = successUrl;
+    fallbackBtn.style.display = "block";
+    fallbackBtn.innerText = "Click here to view your QR Pass";
 },
         "modal": {
             "ondismiss": function() {
