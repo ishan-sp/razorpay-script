@@ -3,12 +3,19 @@
   <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ParkNGo Checkout</title>
+    <style>
+      body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #f8fafc; color: #0f172a; text-align: center; }
+      .btn { display: none; margin-top: 20px; padding: 12px 24px; background: #2f80ed; color: white; border-radius: 12px; text-decoration: none; font-weight: bold; }
+    </style>
   </head>
   <body>
+    <div id="status">Initiating Secure Payment...</div>
+    <a id="fallback-btn" class="btn">Return to App Manually</a>
+
     <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
     <script>
-      // Get params from the URL (orderId, keyId, amount, appScheme)
       const params = new URLSearchParams(window.location.search);
+      const appScheme = params.get("appScheme") || "parkngo://";
       
       const options = {
         "key": params.get("keyId"),
@@ -18,21 +25,38 @@
         "description": "Parking Reservation",
         "order_id": params.get("orderId"),
         "handler": function (response) {
-            // Redirect back to your Expo app
-            const successUrl = params.get("appScheme") + "payment-callback?razorpay_payment_id=" + 
-                               response.razorpay_payment_id + "&razorpay_order_id=" + 
-                               response.razorpay_order_id + "&razorpay_signature=" + 
-                               response.razorpay_signature;
+            document.getElementById('status').innerText = "Payment Successful! Redirecting...";
+            
+            const successUrl = appScheme + "payment-callback?" + 
+                               "razorpay_payment_id=" + response.razorpay_payment_id + 
+                               "&razorpay_order_id=" + response.razorpay_order_id + 
+                               "&razorpay_signature=" + response.razorpay_signature;
+            
+            // Show fallback button just in case
+            const btn = document.getElementById('fallback-btn');
+            btn.href = successUrl;
+            btn.style.display = "inline-block";
+
+            // Attempt automatic redirect
             window.location.href = successUrl;
+            
+            // Final fallback for picky browsers
+            setTimeout(() => { window.location.href = successUrl; }, 1000);
         },
         "modal": {
             "ondismiss": function() {
-                window.location.href = params.get("appScheme") + "payment-callback?status=cancelled";
+                window.location.href = appScheme + "payment-callback?status=cancelled";
             }
-        }
+        },
+        "theme": { "color": "#2F80ED" }
       };
+
       const rzp = new Razorpay(options);
-      rzp.open();
+      
+      // Auto-open the payment modal on load
+      window.onload = function() {
+        rzp.open();
+      };
     </script>
   </body>
 </html>
