@@ -4,56 +4,89 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ParkNGo Checkout</title>
     <style>
-      body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; background: #f8fafc; color: #0f172a; text-align: center; }
-      .btn { display: none; margin-top: 20px; padding: 12px 24px; background: #2f80ed; color: white; border-radius: 12px; text-decoration: none; font-weight: bold; }
+      body { 
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+        display: flex; flex-direction: column; align-items: center; justify-content: center; 
+        height: 100vh; margin: 0; background: #f8fafc; color: #0f172a; text-align: center; 
+        padding: 20px;
+      }
+      .loader {
+        border: 4px solid #f3f3f3; border-top: 4px solid #2f80ed;
+        border-radius: 50%; width: 40px; height: 40px;
+        animation: spin 1s linear infinite; margin-bottom: 20px;
+      }
+      @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+      #status { font-size: 18px; font-weight: 600; margin-bottom: 10px; }
+      .hint { color: #64748b; font-size: 14px; margin-bottom: 20px; }
+      .btn { 
+        display: none; padding: 16px 32px; background: #0f172a; color: white; 
+        border-radius: 16px; text-decoration: none; font-weight: bold; 
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      }
     </style>
   </head>
   <body>
+    <div class="loader" id="loader"></div>
     <div id="status">Initiating Secure Payment...</div>
+    <div id="hint" class="hint">Please do not close this window or press back.</div>
+    
     <a id="fallback-btn" class="btn">Return to App Manually</a>
 
     <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
     <script>
       const params = new URLSearchParams(window.location.search);
       const appScheme = params.get("appScheme") || "parkngo://";
-      
-      const options = {
-        "key": params.get("keyId"),
-        "amount": params.get("amount"),
-        "currency": "INR",
-        "name": "ParkNGo",
-        "description": "Parking Reservation",
-        "order_id": params.get("orderId"),
-        "handler": function (response) {
-    // 1. Update UI
-    document.getElementById('status').innerText = "Payment Verified! Returning to App...";
-    
-    // 2. Build the URL
-    const scheme = params.get("appScheme") || "parkngo://";
-    const successUrl = `${scheme}payment-callback?razorpay_payment_id=${response.razorpay_payment_id}&razorpay_order_id=${response.razorpay_order_id}&razorpay_signature=${response.razorpay_signature}`;
 
-    // 3. The "Double-Tap" Redirect
-    // window.location.replace is better than .href as it doesn't save the "Initiating" page in history
-    window.location.replace(successUrl);
+      // 1. Success Handler: Build URL and attempt Jump
+      function handleSuccess(response) {
+          document.getElementById('loader').style.display = "none";
+          document.getElementById('status').innerText = "Payment Verified!";
+          document.getElementById('hint').innerText = "Redirecting you back to your parking pass...";
 
-    // 4. Critical: Show a manual button if the auto-redirect is blocked
-    const fallbackBtn = document.getElementById('fallback-btn');
-    fallbackBtn.href = successUrl;
-    fallbackBtn.style.display = "block";
-    fallbackBtn.innerText = "Click here to view your QR Pass";
-},
-        "modal": {
-            "ondismiss": function() {
-                window.location.href = appScheme + "payment-callback?status=cancelled";
-            }
-        },
-        "theme": { "color": "#2F80ED" }
-      };
+          const successUrl = `${appScheme}discover?` + 
+                             `razorpay_payment_id=${response.razorpay_payment_id}` + 
+                             `&razorpay_order_id=${response.razorpay_order_id}` + 
+                             `&razorpay_signature=${response.razorpay_signature}`;
 
-      const rzp = new Razorpay(options);
-      
-      // Auto-open the payment modal on load
+          // Show manual button immediately as a fallback
+          const btn = document.getElementById('fallback-btn');
+          btn.href = successUrl;
+          btn.style.display = "block";
+
+          // Try automatic redirect
+          window.location.replace(successUrl);
+          
+          // Secondary fallback for Android Chrome
+          setTimeout(() => { window.location.href = successUrl; }, 800);
+      }
+
       window.onload = function() {
+        // 2. LOOP PROTECTION: If the URL already contains success data, stop here.
+        if (window.location.search.includes('razorpay_payment_id')) {
+            document.getElementById('loader').style.display = "none";
+            document.getElementById('status').innerText = "Payment already completed.";
+            document.getElementById('fallback-btn').style.display = "block";
+            return;
+        }
+
+        // 3. Setup Razorpay Options
+        const options = {
+          "key": params.get("keyId"),
+          "amount": params.get("amount"),
+          "currency": "INR",
+          "name": "ParkNGo",
+          "description": "Parking Reservation",
+          "order_id": params.get("orderId"),
+          "handler": handleSuccess,
+          "modal": {
+              "ondismiss": function() {
+                  window.location.replace(appScheme + "payment-callback?status=cancelled");
+              }
+          },
+          "theme": { "color": "#2F80ED" }
+        };
+
+        const rzp = new Razorpay(options);
         rzp.open();
       };
     </script>
