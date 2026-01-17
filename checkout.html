@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ParkNGo Checkout</title>
+  </head>
+  <body>
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+    <script>
+      // Get params from the URL (orderId, keyId, amount, appScheme)
+      const params = new URLSearchParams(window.location.search);
+      
+      const options = {
+        "key": params.get("keyId"),
+        "amount": params.get("amount"),
+        "currency": "INR",
+        "name": "ParkNGo",
+        "description": "Parking Reservation",
+        "order_id": params.get("orderId"),
+        "handler": function (response) {
+            // Redirect back to your Expo app
+            const successUrl = params.get("appScheme") + "payment-callback?razorpay_payment_id=" + 
+                               response.razorpay_payment_id + "&razorpay_order_id=" + 
+                               response.razorpay_order_id + "&razorpay_signature=" + 
+                               response.razorpay_signature;
+            window.location.href = successUrl;
+        },
+        "modal": {
+            "ondismiss": function() {
+                window.location.href = params.get("appScheme") + "payment-callback?status=cancelled";
+            }
+        }
+      };
+      const rzp = new Razorpay(options);
+      rzp.open();
+    </script>
+  </body>
+</html>
